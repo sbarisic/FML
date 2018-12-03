@@ -92,8 +92,19 @@ namespace FishMarkupLanguage {
 			return true;
 		}
 
+		static bool CanNumStartWith(char C, char NC) {
+			if (C == '.' && char.IsDigit(NC))
+				return true;
+
+			return char.IsDigit(C) || C == '+' || C == '-';
+		}
+
+		static bool IsNumberElement(char C) {
+			return C == '+' || C == '-' || C == 'E' || C == 'e' || C == 'x' || C == 'o' || C == 'b' || C == 'f' || C == '.' || char.IsDigit(C);
+		}
+
 		static void Fail(string Msg) {
-			throw new Exception(string.Format("{0}:{1}; {2}", Line + 1, Col, Msg));
+			throw new Exception(string.Format("{0}:{1}; {2}", Line, Col, Msg));
 		}
 
 		static void Fail(string Fmt, params object[] Args) {
@@ -101,31 +112,42 @@ namespace FishMarkupLanguage {
 		}
 
 		public static FMLDocument Parse(string FileName) {
-			string Source = File.ReadAllText(FileName).Replace("\r", "");
+			string Source = File.ReadAllText(FileName).Replace("\r", "") + "\n";
 
 			bool InQuote = false;
 			bool InSLComment = false;
 			bool InMLComment = false;
-
+			bool InNumber = false;
 			bool InDocument = false;
 			int DocEqLen = -1;
 
 			StringBuilder CurTok = new StringBuilder();
 			List<Token> Tokens = new List<Token>();
-			Action EmitIfNotEmpty = () => {
+			Action<TokenType> EmitIfNotEmpty = (TT) => {
 				if (CurTok.Length > 0) {
-					EmitToken(CurTok.ToString(), Tokens);
+					EmitToken(CurTok.ToString(), Tokens, TT);
 					CurTok.Clear();
 				}
 			};
 
-			Line = Col = 0;
+			Line = 1;
+			Col = 0;
 
 			for (int i = 0; i < Source.Length; i++) {
 				char C = Source[i];
 				char PC = i > 0 ? Source[i - 1] : (char)0;
 				char PPC = i > 1 ? Source[i - 2] : (char)0;
 				char NC = (i < Source.Length - 1) ? Source[i + 1] : (char)0;
+
+				if (InNumber) {
+					if (IsNumberElement(C)) {
+						CurTok.Append(C);
+						continue;
+					} else {
+						InNumber = false;
+						EmitIfNotEmpty(TokenType.NUMBER);
+					}
+				}
 
 				Col++;
 				if (IsNewLine(C)) {
@@ -135,14 +157,14 @@ namespace FishMarkupLanguage {
 
 				if (!InMLComment && !InDocument) {
 					if (C == '/' && NC == '/') {
-						EmitIfNotEmpty();
+						EmitIfNotEmpty(TokenType.NONE);
 						InSLComment = true;
 					}
 
 					if (InSLComment) {
 						if (IsNewLine(C)) {
 							InSLComment = false;
-							EmitIfNotEmpty();
+							EmitIfNotEmpty(TokenType.NONE);
 						}
 
 						continue;
@@ -151,7 +173,7 @@ namespace FishMarkupLanguage {
 
 				if (!InSLComment && !InDocument) {
 					if (C == '/' && NC == '*') {
-						EmitIfNotEmpty();
+						EmitIfNotEmpty(TokenType.NONE);
 						InMLComment = true;
 					}
 
@@ -159,7 +181,7 @@ namespace FishMarkupLanguage {
 						if (C == '*' && NC == '/') {
 							i++;
 							InMLComment = false;
-							EmitIfNotEmpty();
+							EmitIfNotEmpty(TokenType.NONE);
 						}
 
 						continue;
@@ -188,11 +210,11 @@ namespace FishMarkupLanguage {
 
 						i += PrevDocEqLen;
 
-						if (ValidEnd && Source[i] != ']') 
+						if (ValidEnd && Source[i] != ']')
 							ValidEnd = false;
 
 						if (ValidEnd) {
-							Tokens.Add(new Token(CurTok.ToString(), TokenType.DOCUMENT));
+							Tokens.Add(new Token(CurTok.ToString(), TokenType.DOCUMENT, Line, Col));
 							CurTok.Clear();
 							InDocument = false;
 							continue;
@@ -207,7 +229,7 @@ namespace FishMarkupLanguage {
 				}
 
 				if (C == '[') {
-					EmitIfNotEmpty();
+					EmitIfNotEmpty(TokenType.NONE);
 					InDocument = true;
 					DocEqLen = 0;
 					i++;
@@ -237,24 +259,32 @@ namespace FishMarkupLanguage {
 					continue;
 				}
 
-				if (!InQuote) {
-					if (IsWhiteSpace(C)) {
-						if (CurTok.Length > 0) {
-							EmitToken(CurTok.ToString(), Tokens);
-							CurTok.Clear();
-						}
-					} else if (IsSymbol(C)) {
-						if (CurTok.Length > 0) {
-							EmitToken(CurTok.ToString(), Tokens);
-							CurTok.Clear();
-						}
-
-						EmitToken(C.ToString(), Tokens);
-					} else {
-						CurTok.Append(C);
-					}
-				} else if (InQuote)
+				if (InQuote) {
 					CurTok.Append(C);
+					continue;
+				}
+
+				if (IsWhiteSpace(C))
+					EmitIfNotEmpty(TokenType.NONE);
+				else if (CurTok.Length == 0 && CanNumStartWith(C, NC)) {
+					InNumber = true;
+					CurTok.Append(C);
+				} else if (IsSymbol(C)) {
+					/*if (CurTok.Length == 0 && CanNumStartWith(C, NC)) {
+						InNumber = true;
+						CurTok.Append(C);
+						continue;
+					}*/
+
+					EmitIfNotEmpty(TokenType.NONE);
+					EmitToken(C.ToString(), Tokens);
+				} else {
+					// Numbers
+					/*if (CurTok.Length == 0 && CanNumStartWith(C, NC))
+						InNumber = true;*/
+
+					CurTok.Append(C);
+				}
 			}
 
 			if (CurTok.Length > 0)
@@ -268,21 +298,26 @@ namespace FishMarkupLanguage {
 			return Doc;
 		}
 
-		static void EmitToken(string Tok, List<Token> Tokens) {
-			Token T = new Token() { Src = Tok };
+		static void EmitToken(string Tok, List<Token> Tokens, TokenType TokType = TokenType.NONE) {
+			Token T = new Token(Tok, TokType, Line, Col);
 
 			if (Tok.Length == 1 && IsSymbol(Tok[0])) {
 				T.Tok = SymbolTypes.Where(TT => TT.Item1 == Tok).FirstOrDefault()?.Item2 ?? TokenType.NONE;
-
-				/*// Special case to replace semicolon with an empty block
-				if (T.Tok == TokenType.SEMICOLON) {
-					Tokens.Add(new Token() { Src = "{", Tok = TokenType.BRACKET_OPEN });
-					T.Src = "}";
-					T.Tok = TokenType.BRACKET_CLOSE;
-				}*/
 			} else if (Tok.StartsWith("\"") && Tok.EndsWith("\"")) {
 				T.Tok = TokenType.STRING;
-			} else {
+			} else if (T.Tok == TokenType.NUMBER) {
+				T.NumType = NumberType.DEC;
+
+				if (Tok.Contains("0x"))
+					T.NumType = NumberType.HEX;
+				else if (Tok.Contains("0o"))
+					T.NumType = NumberType.OCT;
+				else if (Tok.Contains("0b"))
+					T.NumType = NumberType.BIN;
+				else if (Tok.Contains("."))
+					T.NumType = NumberType.FLOAT;
+
+			} else if (T.Tok == TokenType.NONE) {
 				bool ValidID = true;
 
 				for (int i = 0; i < Tok.Length; i++) {
@@ -301,25 +336,37 @@ namespace FishMarkupLanguage {
 			}
 
 			if (T.Tok == TokenType.NONE)
-				throw new NotImplementedException();
+				Fail("Internal error, unknown token type {0}", T);
 
 			Tokens.Add(T);
 		}
-
 	}
 
 	struct Token {
 		public string Src;
 		public TokenType Tok;
+		public NumberType NumType;
 
-		public Token(string Src, TokenType Tok) {
+		public int Line;
+		public int Col;
+
+		public Token(string Src, TokenType Tok, int Line, int Col) {
 			this.Src = Src;
 			this.Tok = Tok;
+			this.Line = Line;
+			this.Col = Col;
+			NumType = NumberType.NONE;
 		}
 
 		public override string ToString() {
-			string TokName = Tok.ToString();
-			int TokLen = 16;
+			string TokType = Tok.ToString();
+
+			if (Tok == TokenType.NUMBER) {
+				TokType += string.Format(" {0}", NumType);
+			}
+
+			string TokName = string.Format("{0}:{1}:{2} ", TokType, Line, Col);
+			int TokLen = 24;
 
 			if (TokName.Length < TokLen)
 				TokName += new string(' ', TokLen - TokName.Length);
@@ -343,5 +390,14 @@ namespace FishMarkupLanguage {
 		DOLLAR,
 		HASH,
 		EOF
+	}
+
+	enum NumberType {
+		NONE,
+		DEC,
+		HEX,
+		OCT,
+		BIN,
+		FLOAT,
 	}
 }

@@ -7,7 +7,7 @@ This is //a document
 [==[Embedded doc?]==]
 End]===]FIFTH
 
-window title="Test \"Title\"" width= 800 height =550
+window title="Test \"Title\"" width= 800 height =550 depth=.20f
 {
 	//	A comment.
 
@@ -22,7 +22,7 @@ end
 ]===]
 			}
 			menu-separator;
-			menu-item#mi€ text="Exit";
+			menu-item#selector text="Exit";
 		}
 		/*
 		block comment lol*/
@@ -36,10 +36,30 @@ head {
 template named-text-input name value=none btn= "OK" {
     label text=$name;
     input value = $value;
-    button text=$btn;
+    button text=$ btn;
 }
 
 body {
     named-text-input name= "Your name" value ="Player";
     named-text-input name = "Your class" btn="Confirm";
 }
+
+10
+0x10
+0x1f
+0o22
+0x39
+0b00
+0b10
+0b20
+-0.254
++0.254
+0.254
+0.12f
+24.55f
+3.1415926
+-.123456789
+-3.1E+12
+.1e-23
+-3.1E+12f
+.1e-23f
