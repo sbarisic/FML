@@ -1,20 +1,45 @@
-﻿head {
-	title { " My  website \"Quote Escape\"  " }
+ZEROTH//This is a comment
+FIRST//*
+SECOND//*/
+THIRD/*This is a composite comment
+//*/FOURTH[===[Begin/**/
+This is //a document
+[==[Embedded doc?]==]
+End]===]FIFTH
+
+window title="Test \"Title\"" width= 800 height =550
+{
+	//	A comment.
+
+	menu-bar dock = 789
+	{
+		menu-item text="File" {
+			menu-item text   = "Open" {
+				script language="Lua" [===[
+function OnClick(e)
+	OpenFileOpenDialog([==[some file path]==])
+end
+]===]
+			}
+			menu-separator;
+			menu-item#mi€ text="Exit";
+		}
+		/*
+		block comment lol*/
+	}
+}
+
+head {
+    title { "My website" }
 }
 
 template named-text-input name value=none btn= "OK" {
-	label { $name }
-	input value = $value;
-	button { $ btn } // This is another comment
+    label text=$name;
+    input value = $value;
+    button text=$btn;
 }
 
-// This is a comment
-
-/*
-More of le comments
-*/
-
 body {
-	named-text-input name= "Your name" /* Le comment */ value ="Player";
-	named-text-input name = "Your class" btn="Confirm";
+    named-text-input name= "Your name" value ="Player";
+    named-text-input name = "Your class" btn="Confirm";
 }
