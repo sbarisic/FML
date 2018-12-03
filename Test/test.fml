@@ -1,0 +1,20 @@
+﻿head {
+	title { " My  website \"Quote Escape\"  " }
+}
+
+template named-text-input name value=none btn= "OK" {
+	label { $name }
+	input value = $value;
+	button { $ btn } // This is another comment
+}
+
+// This is a comment
+
+/*
+More of le comments
+*/
+
+body {
+	named-text-input name= "Your name" /* Le comment */ value ="Player";
+	named-text-input name = "Your class" btn="Confirm";
+}

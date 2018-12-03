@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.102
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FishMarkupLanguage", "FishMarkupLanguage\FishMarkupLanguage.csproj", "{DEBA5FB3-EC87-493F-9908-E04242FE290D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{30B8DB63-0860-48E0-860A-FA2B1A7030FD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DEBA5FB3-EC87-493F-9908-E04242FE290D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DEBA5FB3-EC87-493F-9908-E04242FE290D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DEBA5FB3-EC87-493F-9908-E04242FE290D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DEBA5FB3-EC87-493F-9908-E04242FE290D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{30B8DB63-0860-48E0-860A-FA2B1A7030FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{30B8DB63-0860-48E0-860A-FA2B1A7030FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{30B8DB63-0860-48E0-860A-FA2B1A7030FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{30B8DB63-0860-48E0-860A-FA2B1A7030FD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {622B7F29-7178-4625-A661-E0BB07EB9E3F}
+	EndGlobalSection
+EndGlobal
