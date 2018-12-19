@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -8,48 +9,6 @@ using System.Threading.Tasks;
 using TokenTuple = System.Tuple<string, FishMarkupLanguage.TokenType>;
 
 namespace FishMarkupLanguage {
-	public class FMLTag {
-		public string TagName;
-
-		public FMLTag Parent;
-		public List<FMLTag> Children;
-
-		public FMLTag(string Name) {
-			TagName = Name;
-			Children = new List<FMLTag>();
-			Parent = null;
-		}
-
-		public string BuildString() {
-			StringBuilder SB = new StringBuilder().Append(TagName).Append(" ").AppendLine("{");
-
-			foreach (var Child in Children)
-				SB.AppendLine(Child.BuildString());
-
-
-			return SB.AppendLine("}").ToString();
-		}
-
-		public FMLTag CreateChild(string Name) {
-			FMLTag C = new FMLTag(Name);
-			C.Parent = this;
-			Children.Add(C);
-			return C;
-		}
-
-		public override string ToString() {
-			return string.Format("{0} {{ {1} }}", TagName, Children?.Count ?? 0);
-		}
-	}
-
-	public class FMLDocument {
-		public FMLTag Root;
-
-		public FMLDocument() {
-			Root = new FMLTag("root");
-		}
-	}
-
 	public static class FML {
 		static int Line;
 		static int Col;
@@ -111,7 +70,7 @@ namespace FishMarkupLanguage {
 			Fail(string.Format(Fmt, Args));
 		}
 
-		public static FMLDocument Parse(string FileName) {
+		static IEnumerable<Token> Lex(string FileName) {
 			string Source = File.ReadAllText(FileName).Replace("\r", "") + "\n";
 
 			bool InQuote = false;
@@ -122,12 +81,16 @@ namespace FishMarkupLanguage {
 			int DocEqLen = -1;
 
 			StringBuilder CurTok = new StringBuilder();
-			List<Token> Tokens = new List<Token>();
-			Action<TokenType> EmitIfNotEmpty = (TT) => {
+			//List<Token> Tokens = new List<Token>();
+
+			Func<TokenType, Token?> EmitIfNotEmpty = (TT) => {
 				if (CurTok.Length > 0) {
-					EmitToken(CurTok.ToString(), Tokens, TT);
+					Token Ret = EmitToken(CurTok.ToString(), TT);
 					CurTok.Clear();
+					return Ret;
 				}
+
+				return null;
 			};
 
 			Line = 1;
@@ -145,7 +108,10 @@ namespace FishMarkupLanguage {
 						continue;
 					} else {
 						InNumber = false;
-						EmitIfNotEmpty(TokenType.NUMBER);
+
+						Token? T = EmitIfNotEmpty(TokenType.NUMBER);
+						if (T != null)
+							yield return T.Value;
 					}
 				}
 
@@ -157,14 +123,20 @@ namespace FishMarkupLanguage {
 
 				if (!InMLComment && !InDocument) {
 					if (C == '/' && NC == '/') {
-						EmitIfNotEmpty(TokenType.NONE);
+						Token? T = EmitIfNotEmpty(TokenType.NONE);
+						if (T != null)
+							yield return T.Value;
+
 						InSLComment = true;
 					}
 
 					if (InSLComment) {
 						if (IsNewLine(C)) {
 							InSLComment = false;
-							EmitIfNotEmpty(TokenType.NONE);
+
+							Token? T = EmitIfNotEmpty(TokenType.NONE);
+							if (T != null)
+								yield return T.Value;
 						}
 
 						continue;
@@ -173,7 +145,10 @@ namespace FishMarkupLanguage {
 
 				if (!InSLComment && !InDocument) {
 					if (C == '/' && NC == '*') {
-						EmitIfNotEmpty(TokenType.NONE);
+						Token? T = EmitIfNotEmpty(TokenType.NONE);
+						if (T != null)
+							yield return T.Value;
+
 						InMLComment = true;
 					}
 
@@ -181,7 +156,10 @@ namespace FishMarkupLanguage {
 						if (C == '*' && NC == '/') {
 							i++;
 							InMLComment = false;
-							EmitIfNotEmpty(TokenType.NONE);
+
+							Token? T = EmitIfNotEmpty(TokenType.NONE);
+							if (T != null)
+								yield return T.Value;
 						}
 
 						continue;
@@ -214,7 +192,8 @@ namespace FishMarkupLanguage {
 							ValidEnd = false;
 
 						if (ValidEnd) {
-							Tokens.Add(new Token(CurTok.ToString(), TokenType.DOCUMENT, Line, Col));
+							yield return new Token(CurTok.ToString(), TokenType.DOCUMENT, Line, Col);
+
 							CurTok.Clear();
 							InDocument = false;
 							continue;
@@ -229,7 +208,10 @@ namespace FishMarkupLanguage {
 				}
 
 				if (C == '[') {
-					EmitIfNotEmpty(TokenType.NONE);
+					Token? T = EmitIfNotEmpty(TokenType.NONE);
+					if (T != null)
+						yield return T.Value;
+
 					InDocument = true;
 					DocEqLen = 0;
 					i++;
@@ -247,12 +229,16 @@ namespace FishMarkupLanguage {
 				if (C == '\"') {
 					if (!InQuote) {
 						InQuote = true;
+
 						if (CurTok.Length > 0)
-							EmitToken(CurTok.ToString(), Tokens);
+							yield return EmitToken(CurTok.ToString());
+
 						CurTok.Clear();
 					} else if (PC != '\\' || (PC == '\\' && PPC == '\\')) {
 						InQuote = false;
-						EmitToken("\"" + CurTok.ToString() + "\"", Tokens);
+
+						yield return EmitToken("\"" + CurTok.ToString() + "\"");
+
 						CurTok.Clear();
 					} else
 						CurTok.Append(C);
@@ -264,9 +250,11 @@ namespace FishMarkupLanguage {
 					continue;
 				}
 
-				if (IsWhiteSpace(C))
-					EmitIfNotEmpty(TokenType.NONE);
-				else if (CurTok.Length == 0 && CanNumStartWith(C, NC)) {
+				if (IsWhiteSpace(C)) {
+					Token? T = EmitIfNotEmpty(TokenType.NONE);
+					if (T != null)
+						yield return T.Value;
+				} else if (CurTok.Length == 0 && CanNumStartWith(C, NC)) {
 					InNumber = true;
 					CurTok.Append(C);
 				} else if (IsSymbol(C)) {
@@ -276,8 +264,11 @@ namespace FishMarkupLanguage {
 						continue;
 					}*/
 
-					EmitIfNotEmpty(TokenType.NONE);
-					EmitToken(C.ToString(), Tokens);
+					Token? T = EmitIfNotEmpty(TokenType.NONE);
+					if (T != null)
+						yield return T.Value;
+
+					yield return EmitToken(C.ToString());
 				} else {
 					// Numbers
 					/*if (CurTok.Length == 0 && CanNumStartWith(C, NC))
@@ -288,17 +279,82 @@ namespace FishMarkupLanguage {
 			}
 
 			if (CurTok.Length > 0)
-				EmitToken(CurTok.ToString(), Tokens);
-
-			foreach (var T in Tokens)
-				Console.WriteLine(T);
-
-			FMLDocument Doc = new FMLDocument();
-			FMLTag CurTag = Doc.Root;
-			return Doc;
+				yield return EmitToken(CurTok.ToString());
 		}
 
-		static void EmitToken(string Tok, List<Token> Tokens, TokenType TokType = TokenType.NONE) {
+		public static void Parse(string FileName, FMLDocument Doc) {
+			Token[] Tokens = Lex(FileName).ToArray();
+
+			for (int i = 0; i < Tokens.Length; i++) {
+				if (TryParseTag(ref i, Tokens, Doc, out FMLTag T))
+					Doc.Tags.Add(T);
+				else
+					throw new Exception("Invalid token\n" + Tokens[i]);
+			}
+		}
+
+		static bool TryParseTag(ref int i, Token[] Tokens, FMLDocument Doc, out FMLTag Tag) {
+			Tag = null;
+
+			if (Tokens[i].Tok == TokenType.IDENTIFIER && Doc.TagSet.IsValid(Tokens[i].Src)) {
+				Tag = new FMLTag(Tokens[i].Src);
+				i++;
+
+				while (Tokens[i].Tok == TokenType.IDENTIFIER) {
+					string AttribName = Tokens[i].Src;
+					object Value = true;
+
+					if (Tokens[i + 1].Tok == TokenType.EQUAL) {
+						string ValueSrc = Tokens[i + 2].Src;
+
+						switch (Tokens[i + 2].Tok) {
+							case TokenType.IDENTIFIER:
+								throw new NotImplementedException();
+
+							case TokenType.NUMBER:
+								Value = float.Parse(ValueSrc, CultureInfo.InvariantCulture);
+								break;
+
+							case TokenType.STRING:
+								Value = ValueSrc.Substring(1, ValueSrc.Length - 2);
+								break;
+
+							case TokenType.DOCUMENT:
+								throw new NotImplementedException();
+						
+							default:
+								throw new InvalidOperationException();
+						}
+
+						i += 2;
+					}
+
+					Tag.Attributes.SetAttribute(AttribName, Value);
+					i++;
+				}
+
+				if (Tokens[i].Tok == TokenType.BRACKET_OPEN) {
+					i++;
+
+					while (Tokens[i].Tok != TokenType.BRACKET_CLOSE) {
+						if (TryParseTag(ref i, Tokens, Doc, out FMLTag NewTag))
+							Tag.AddChild(NewTag);
+						else
+							throw new Exception("Invalid token\n" + Tokens[i]);
+					}
+
+					i++;
+					return true;
+				} else if (Tokens[i].Tok == TokenType.SEMICOLON) {
+					i++;
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		static Token EmitToken(string Tok, TokenType TokType = TokenType.NONE) {
 			Token T = new Token(Tok, TokType, Line, Col);
 
 			if (Tok.Length == 1 && IsSymbol(Tok[0])) {
@@ -338,7 +394,7 @@ namespace FishMarkupLanguage {
 			if (T.Tok == TokenType.NONE)
 				Fail("Internal error, unknown token type {0}", T);
 
-			Tokens.Add(T);
+			return T;
 		}
 	}
 
