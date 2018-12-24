@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using TokenTuple = System.Tuple<string, FishMarkupLanguage.TokenType>;
@@ -71,7 +72,21 @@ namespace FishMarkupLanguage {
 		}
 
 		static IEnumerable<Token> Lex(string FileName) {
-			string Source = File.ReadAllText(FileName).Replace("\r", "") + "\n";
+			string Source = "";
+			int Retries = 0;
+
+			while (true) {
+				try {
+					Source = File.ReadAllText(FileName).Replace("\r", "") + "\n";
+					break;
+				} catch (Exception) {
+					Thread.Sleep(50);
+					Retries++;
+
+					if (Retries >= 6)
+						throw;
+				}
+			}
 
 			bool InQuote = false;
 			bool InSLComment = false;
@@ -284,6 +299,7 @@ namespace FishMarkupLanguage {
 
 		public static void Parse(string FileName, FMLDocument Doc) {
 			Token[] Tokens = Lex(FileName).ToArray();
+			Doc.Tags.Clear();
 
 			for (int i = 0; i < Tokens.Length; i++) {
 				if (TryParseTag(ref i, Tokens, Doc, out FMLTag T))
@@ -308,8 +324,16 @@ namespace FishMarkupLanguage {
 						string ValueSrc = Tokens[i + 2].Src;
 
 						switch (Tokens[i + 2].Tok) {
-							case TokenType.IDENTIFIER:
-								throw new NotImplementedException();
+							case TokenType.IDENTIFIER: {
+									if (ValueSrc == "false")
+										Value = false;
+									else if (ValueSrc == "true")
+										Value = true;
+									else
+										throw new NotImplementedException();
+
+									break;
+								}
 
 							case TokenType.NUMBER:
 								Value = float.Parse(ValueSrc, CultureInfo.InvariantCulture);
@@ -321,7 +345,7 @@ namespace FishMarkupLanguage {
 
 							case TokenType.DOCUMENT:
 								throw new NotImplementedException();
-						
+
 							default:
 								throw new InvalidOperationException();
 						}

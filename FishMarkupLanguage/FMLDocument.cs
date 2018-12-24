@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -30,6 +31,18 @@ namespace FishMarkupLanguage {
 				return Values[Name];
 
 			return null;
+		}
+
+		public T GetAttribute<T>(string Name, T Default) {
+			object Attrib = GetAttribute(Name);
+
+			if (Attrib == null)
+				return Default;
+
+			if (Attrib is T TAttrib)
+				return TAttrib;
+
+			return Default;
 		}
 
 		public override string ToString() {
