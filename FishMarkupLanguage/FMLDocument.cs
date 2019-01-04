@@ -139,4 +139,12 @@ namespace FishMarkupLanguage {
 			return string.Join("\n", Tags);
 		}
 	}
+
+	public class FMLHereDoc {
+		public string Content;
+
+		public FMLHereDoc(string Content) {
+			this.Content = Content;
+		}
+	}
 }

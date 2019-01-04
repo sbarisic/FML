@@ -344,7 +344,8 @@ namespace FishMarkupLanguage {
 								break;
 
 							case TokenType.DOCUMENT:
-								throw new NotImplementedException();
+								Value = new FMLHereDoc(ValueSrc);
+								break;
 
 							default:
 								throw new InvalidOperationException();
