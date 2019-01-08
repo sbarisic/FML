@@ -343,7 +343,8 @@ namespace FishMarkupLanguage {
 								break;
 
 							case TokenType.STRING:
-								Value = ValueSrc.Substring(1, ValueSrc.Length - 2);
+								// TODO: Make it better
+								Value = ValueSrc.Substring(1, ValueSrc.Length - 2).Replace("\\n", "\n");
 								break;
 
 							case TokenType.DOCUMENT:
