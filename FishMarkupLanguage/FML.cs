@@ -299,20 +299,23 @@ namespace FishMarkupLanguage {
 
 		public static void Parse(string FileName, FMLDocument Doc) {
 			Token[] Tokens = Lex(FileName).ToArray();
-			Doc.Tags.Clear();
+			List<FMLTag> Tags = new List<FMLTag>();
 
 			for (int i = 0; i < Tokens.Length; i++) {
-				if (TryParseTag(ref i, Tokens, Doc, out FMLTag T))
-					Doc.Tags.Add(T);
+				if (TryParseTag(ref i, Tokens, Doc.TagSet, out FMLTag T))
+					Tags.Add(T);
 				else
 					throw new Exception("Invalid token\n" + Tokens[i]);
 			}
+
+			Doc.Tags.Clear();
+			Doc.Tags.AddRange(Tags);
 		}
 
-		static bool TryParseTag(ref int i, Token[] Tokens, FMLDocument Doc, out FMLTag Tag) {
+		static bool TryParseTag(ref int i, Token[] Tokens, FMLTagSet TagSet, out FMLTag Tag) {
 			Tag = null;
 
-			if (Tokens[i].Tok == TokenType.IDENTIFIER && Doc.TagSet.IsValid(Tokens[i].Src)) {
+			if (Tokens[i].Tok == TokenType.IDENTIFIER && TagSet.IsValid(Tokens[i].Src)) {
 				Tag = new FMLTag(Tokens[i].Src);
 				i++;
 
@@ -362,7 +365,7 @@ namespace FishMarkupLanguage {
 					i++;
 
 					while (Tokens[i].Tok != TokenType.BRACKET_CLOSE) {
-						if (TryParseTag(ref i, Tokens, Doc, out FMLTag NewTag))
+						if (TryParseTag(ref i, Tokens, TagSet, out FMLTag NewTag))
 							Tag.AddChild(NewTag);
 						else
 							throw new Exception("Invalid token\n" + Tokens[i]);
