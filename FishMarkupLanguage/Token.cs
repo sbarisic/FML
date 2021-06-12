@@ -15,12 +15,14 @@ namespace FishMarkupLanguage {
 
 		public int Line;
 		public int Col;
+		public int HereDocLevel;
 
-		public Token(string Src, TokenType Tok, int Line, int Col) {
+		public Token(string Src, TokenType Tok, int Line, int Col, int HereDocLevel) {
 			this.Src = Src;
 			this.Tok = Tok;
 			this.Line = Line;
 			this.Col = Col;
+			this.HereDocLevel = HereDocLevel;
 			NumType = NumberType.NONE;
 		}
 

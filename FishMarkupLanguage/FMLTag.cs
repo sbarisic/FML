@@ -172,6 +172,8 @@ namespace FishMarkupLanguage {
 				return F.ToString() + "f";
 			else if (Value is FMLTemplateValue TV) {
 				return "$" + TV.Name;
+			} else if (Value is FMLHereDoc HD) {
+				return HD.ToHereDocString();
 			} else
 				throw new Exception("Cannot convert value to string");
 		}

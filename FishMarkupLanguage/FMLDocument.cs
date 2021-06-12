@@ -81,10 +81,20 @@ namespace FishMarkupLanguage {
 	}
 
 	public class FMLHereDoc {
+		public int Level;
 		public string Content;
 
-		public FMLHereDoc(string Content) {
+		public FMLHereDoc(int Level, string Content) {
+			this.Level = Level;
 			this.Content = Content;
+		}
+
+		public string ToHereDocString() {
+			return string.Format("[{0}[{1}]{0}]", new string('=', Level), Content);
+		}
+
+		public override string ToString() {
+			return Content;
 		}
 	}
 }

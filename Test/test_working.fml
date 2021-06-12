@@ -2,13 +2,18 @@ template li val {
 	li { $val; }
 }
 
+template faggot-inserter {
+	[==[
+	~Faggot~
+	]==];
+	br;
+	br;
+}
+
 template txt-line val {
 	$val;
 	br;
-	
-	"Faggot";
-	br;
-	br;
+	faggot-inserter;
 }
 
 html {

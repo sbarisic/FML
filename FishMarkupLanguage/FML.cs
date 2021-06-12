@@ -214,7 +214,7 @@ namespace FishMarkupLanguage {
 							ValidEnd = false;
 
 						if (ValidEnd) {
-							yield return new Token(CurTok.ToString(), TokenType.DOCUMENT, Line, Col);
+							yield return new Token(CurTok.ToString(), TokenType.DOCUMENT, Line, Col, PrevDocEqLen);
 
 							CurTok.Clear();
 							InDocument = false;
@@ -367,7 +367,7 @@ namespace FishMarkupLanguage {
 					return T.Src.Substring(1, T.Src.Length - 2).Replace("\\n", "\n");
 
 				case TokenType.DOCUMENT:
-					return new FMLHereDoc(T.Src);
+					return new FMLHereDoc(T.HereDocLevel, T.Src);
 
 				default:
 					throw new InvalidOperationException();
@@ -494,7 +494,7 @@ namespace FishMarkupLanguage {
 		}
 
 		static Token EmitToken(string Tok, TokenType TokType = TokenType.NONE) {
-			Token T = new Token(Tok, TokType, Line, Col);
+			Token T = new Token(Tok, TokType, Line, Col, -1);
 
 			if (Tok.Length == 1 && IsSymbol(Tok[0])) {
 				T.Tok = SymbolTypes[Tok];
