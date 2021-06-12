@@ -4,139 +4,79 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
+using System.Xml.Serialization;
 
 namespace FishMarkupLanguage {
-	public class FMLAttributes {
-		Dictionary<string, object> Values;
-
-		public int Count {
-			get {
-				return Values.Count;
-			}
-		}
-
-		public FMLAttributes() {
-			Values = new Dictionary<string, object>();
-		}
-
-		public void SetAttribute(string Name, object Value) {
-			if (Values.ContainsKey(Name))
-				Values.Remove(Name);
-
-			Values.Add(Name, Value);
-		}
-
-		public object GetAttribute(string Name) {
-			if (Values.ContainsKey(Name))
-				return Values[Name];
-
-			return null;
-		}
-
-		public T GetAttribute<T>(string Name, T Default) {
-			object Attrib = GetAttribute(Name);
-
-			if (Attrib == null)
-				return Default;
-
-			if (Attrib is T TAttrib)
-				return TAttrib;
-
-			return Default;
-		}
-
-		public override string ToString() {
-			return string.Join(" ", Values.Select(KV => string.Format("{0} = {1}", KV.Key, KV.Value)));
-		}
-	}
-
-	public class FMLTag {
-		public string TagName;
-		public FMLAttributes Attributes;
-
-		public FMLTag Parent;
-		public List<FMLTag> Children;
-
-		public FMLTag() {
-			Attributes = new FMLAttributes();
-			Children = new List<FMLTag>();
-			Parent = null;
-		}
-
-		public FMLTag(string Name) : this() {
-			TagName = Name;
-		}
-
-		public void AddChild(FMLTag T) {
-			if (T.Parent != null)
-				T.Parent.RemoveChild(T);
-
-			T.Parent = this;
-			Children.Add(T);
-		}
-
-		public void RemoveChild(FMLTag T) {
-			if (T.Parent == this)
-				T.Parent = null;
-
-			if (Children.Contains(T))
-				Children.Remove(T);
-		}
-
-		public string BuildString() {
-			StringBuilder SB = new StringBuilder().Append(TagName).Append(" ").AppendLine("{");
-
-			foreach (var Child in Children)
-				SB.AppendLine(Child.BuildString());
-
-
-			return SB.AppendLine("}").ToString();
-		}
-
-		public override string ToString() {
-			return string.Format("{0}{1} {{ {2} }}", TagName, Attributes.Count > 0 ? " " + Attributes.ToString() : "", string.Join(" ", Children));
-		}
-	}
-
-	public class FMLTagSet {
-		List<string> Tags;
-
-		public FMLTagSet() {
-			Tags = new List<string>();
-		}
-
-		public void AddTag(string Name) {
-			Tags.Add(Name);
-		}
-
-		public void AddTags(params string[] Names) {
-			foreach (var T in Names)
-				AddTag(T);
-		}
-
-		public bool IsValid(string Name) {
-			if (Tags.Contains(Name))
-				return true;
-
-			return false;
-		}
-
-		public string[] GetAllTags() {
-			return Tags.ToArray();
-		}
-	}
 
 	public class FMLDocument {
 		public FMLTagSet TagSet;
 		public List<FMLTag> Tags;
+		public List<FMLTemplateTag> Templates;
 
 		public FMLDocument() {
 			TagSet = new FMLTagSet();
 			Tags = new List<FMLTag>();
+			Templates = new List<FMLTemplateTag>();
 		}
 
-		public override string ToString() {
-			return string.Join("\n", Tags);
+		public void FlattenTemplates() {
+			for (int i = 0; i < Tags.Count; i++) {
+				if (FlattenTemplate(Tags[i], out FMLTag[] NewTags)) {
+					Tags.RemoveAt(i);
+					Tags.InsertRange(i, NewTags);
+				}
+			}
+		}
+
+		bool ContainsTemplate(string Name, out FMLTemplateTag TTag) {
+			foreach (FMLTemplateTag T in Templates) {
+				if (T.TemplateName == Name) {
+					TTag = T;
+					return true;
+				}
+			}
+
+			TTag = null;
+			return false;
+		}
+
+		bool FlattenTemplate(FMLTag TemplateInvoke, out FMLTag[] NewTags) {
+			if (ContainsTemplate(TemplateInvoke.TagName, out FMLTemplateTag TTag)) {
+				NewTags = TTag.ConstructTags(TemplateInvoke);
+				return true;
+			} else {
+				for (int i = 0; i < TemplateInvoke.Children.Count; i++) {
+					if (FlattenTemplate(TemplateInvoke.Children[i], out FMLTag[] NewChildTags)) {
+						TemplateInvoke.Children.RemoveAt(i);
+						TemplateInvoke.Children.InsertRange(i, NewChildTags);
+					}
+				}
+			}
+
+			NewTags = null;
+			return false;
+		}
+
+		public XmlDocument ToXML() {
+			XmlDocument XMLDoc = new XmlDocument();
+
+			foreach (FMLTag T in Tags) {
+				XmlElement E = T.ToXmlElement(XMLDoc);
+
+				if (E == null)
+					throw new Exception();
+
+				XMLDoc.AppendChild(E);
+			}
+
+			return XMLDoc;
+		}
+
+		public void BuildString(StringBuilder SB) {
+			foreach (FMLTag T in Tags) {
+				T.BuildString(0, SB);
+			}
 		}
 	}
 

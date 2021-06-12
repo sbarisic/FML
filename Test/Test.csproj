@@ -48,6 +48,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="test_working.fml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="test.fml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

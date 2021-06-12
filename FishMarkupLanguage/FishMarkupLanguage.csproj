@@ -42,8 +42,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ArgumentParser.cs" />
+    <Compile Include="Token.cs" />
     <Compile Include="FML.cs" />
+    <Compile Include="FMLAttributes.cs" />
     <Compile Include="FMLDocument.cs" />
+    <Compile Include="FMLTagSet.cs" />
+    <Compile Include="FMLTag.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

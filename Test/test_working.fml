@@ -1,0 +1,68 @@
+template li val {
+	li { $val; }
+}
+
+template txt-line val {
+	$val;
+	br;
+	
+	"Faggot";
+	br;
+	br;
+}
+
+html {
+	head {
+		meta charset = "utf-8";
+		meta name = "viewport" content = "width=device-width, initial-scale=1";
+		
+		title { "Motherfucking Website"; }
+	}
+
+	body {
+		header {
+			h1 { "This is a motherfucking website."; }
+			aside { "And it's fucking perfect."; }
+		}
+		
+		h2 { "Seriously, what the fuck else do you want?"; }
+        p { "You probably build websites and think your shit is special. Wrong, motherfucker. Let me describe your perfect-ass website:"; }
+        
+		ul {
+			li val = "Shit's lightweight and loads fast";
+			li val = "Fits on all your shitty screens";
+			li val = "Looks the same in all your shitty browsers";
+			li val = "The motherfucker's accessible to every asshole that visits your site";
+			li val = "Shit's legible and gets your fucking point across (if you had one instead of just 5mb pics of hipsters drinking coffee)";
+		}
+        
+        p { "You never knew it, but this is your perfect website. Here's why."; }
+        h2 { "It's fucking lightweight"; }
+		
+        p {
+			txt-line val = "This entire page weighs less than the gradient-meshed facebook logo on your fucking Wordpress site.";
+			txt-line val = "Did you seriously load 100kb of jQuery UI just so you could animate the fucking background color of a div?";
+			txt-line val = "You loaded all 7 fontfaces of a shitty webfont just so you could say \"Hi.\" at 100px height at the beginning of your site?";
+			txt-line val = "You piece of shit.";
+		}
+        
+        h2 { "It's responsive"; }
+        p { "You dumbass. You thought you needed media queries to be responsive, but no. Responsive means that it responds to whatever motherfucking screensize it's viewed on. This site doesn't care if you're on an iMac or a motherfucking Tamagotchi."; }
+        h2 { "It fucking works"; }
+    
+        blockquote cite = "https://www.vitsoe.com/us/about/good-design" {
+			"Good design is as little design as possible.";
+			br;
+            "- some German motherfucker";
+        }
+		
+		hr;
+		
+		h2 { "Epilogue"; }
+		p {
+			"From the philosophies expressed (poorly) above, ";
+			a href = "" { "txti"; }
+			" was created. You should try it today to make your own motherfucking websites.";
+		}
+	}
+}

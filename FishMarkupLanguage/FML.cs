@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -14,20 +15,26 @@ namespace FishMarkupLanguage {
 		static int Line;
 		static int Col;
 
-		static TokenTuple[] SymbolTypes = new[] {
-			new TokenTuple("$", TokenType.DOLLAR),
-			new TokenTuple("#", TokenType.HASH),
-			new TokenTuple("{", TokenType.BRACKET_OPEN),
-			new TokenTuple("}", TokenType.BRACKET_CLOSE),
-			new TokenTuple("=", TokenType.EQUAL),
-			new TokenTuple(";", TokenType.SEMICOLON),
-			new TokenTuple(".", TokenType.DOT),
+		static Dictionary<string, TokenType> SymbolTypes = new Dictionary<string, TokenType>() {
+			{ "$", TokenType.DOLLAR },
+			{ "#", TokenType.HASH },
+			{ "{", TokenType.BRACKET_OPEN },
+			{ "}", TokenType.BRACKET_CLOSE },
+			{ "=", TokenType.EQUAL },
+			{ ";", TokenType.SEMICOLON },
+			{ ".", TokenType.DOT },
 		};
 
-		static string[] Keywords = new[] { "template", "none" };
+		static Dictionary<string, TokenType> Keywords = new Dictionary<string, TokenType>() {
+			{"template", TokenType.IDENTIFIER},
+			{"none", TokenType.IDENTIFIER},
+
+			{"true", TokenType.IDENTIFIER},
+			{"false", TokenType.IDENTIFIER}
+		};
 
 		static bool IsSymbol(char C) {
-			if (SymbolTypes.Select(T => T.Item1).Contains(C.ToString()))
+			if (SymbolTypes.ContainsKey(C.ToString()))
 				return true;
 
 			return false;
@@ -136,7 +143,7 @@ namespace FishMarkupLanguage {
 					Line++;
 				}
 
-				if (!InMLComment && !InDocument) {
+				if (!InMLComment && !InDocument && !InQuote) {
 					if (C == '/' && NC == '/') {
 						Token? T = EmitIfNotEmpty(TokenType.NONE);
 						if (T != null)
@@ -241,6 +248,10 @@ namespace FishMarkupLanguage {
 					continue;
 				}
 
+				if (InQuote && C == '\\' && NC == '"') {
+					continue;
+				}
+
 				if (C == '\"') {
 					if (!InQuote) {
 						InQuote = true;
@@ -301,10 +312,11 @@ namespace FishMarkupLanguage {
 			Token[] Tokens = Lex(FileName).ToArray();
 			List<FMLTag> Tags = new List<FMLTag>();
 
-			for (int i = 0; i < Tokens.Length; i++) {
-				if (TryParseTag(ref i, Tokens, Doc.TagSet, out FMLTag T))
-					Tags.Add(T);
-				else
+			for (int i = 0; i < Tokens.Length;) {
+				if (TryParseTag(ref i, Tokens, Doc, null, out FMLTag T)) {
+					if (T != null)
+						Tags.Add(T);
+				} else
 					throw new Exception("Invalid token\n" + Tokens[i]);
 			}
 
@@ -314,14 +326,103 @@ namespace FishMarkupLanguage {
 
 		public static FMLDocument Parse(string FileName) {
 			FMLDocument Doc = new FMLDocument();
+			Doc.TagSet.AnyTagValid = true;
+
 			Parse(FileName, Doc);
+
 			return Doc;
 		}
 
-		static bool TryParseTag(ref int i, Token[] Tokens, FMLTagSet TagSet, out FMLTag Tag) {
-			Tag = null;
+		static object ParseValueToken(Token T) {
+			switch (T.Tok) {
+				case TokenType.BOOL: {
+						if (T.Src == "false")
+							return false;
+						else if (T.Src == "true")
+							return true;
+						else
+							throw new NotImplementedException();
+					}
 
-			if (Tokens[i].Tok == TokenType.IDENTIFIER && TagSet.IsValid(Tokens[i].Src)) {
+				case TokenType.NUMBER:
+					switch (T.NumType) {
+						case NumberType.DEC:
+							return int.Parse(T.Src);
+
+						case NumberType.FLOAT: {
+								string FloatSrc = T.Src;
+
+								if (FloatSrc.EndsWith("f"))
+									FloatSrc = FloatSrc.Substring(0, FloatSrc.Length - 1);
+
+								return float.Parse(FloatSrc, CultureInfo.InvariantCulture);
+							}
+
+						default:
+							throw new Exception("Could not parse number " + T.Src);
+					}
+
+				case TokenType.STRING:
+					// TODO: Make it better
+					return T.Src.Substring(1, T.Src.Length - 2).Replace("\\n", "\n");
+
+				case TokenType.DOCUMENT:
+					return new FMLHereDoc(T.Src);
+
+				default:
+					throw new InvalidOperationException();
+			}
+		}
+
+		static bool TryParseTag(ref int i, Token[] Tokens, FMLDocument Doc, FMLTemplateTag RootTemplateTag, out FMLTag Tag) {
+			//Tag = null;
+
+			if (Tokens[i].Tok == TokenType.IDENTIFIER && Tokens[i].Src == "template") {
+				if (RootTemplateTag != null)
+					throw new Exception("Invalid nesting of template tags");
+
+				FMLTemplateTag TemplateTag = new FMLTemplateTag();
+				Doc.Templates.Add(TemplateTag);
+				i++;
+
+				if (Tokens[i].Tok != TokenType.IDENTIFIER)
+					throw new Exception("Expected template name");
+
+				TemplateTag.TemplateName = Tokens[i].Src;
+				i++;
+
+				while (Tokens[i].Tok == TokenType.IDENTIFIER) {
+					string AttribName = Tokens[i].Src;
+					object Value = null;
+
+					if (Tokens[i + 1].Tok == TokenType.EQUAL) {
+						Value = ParseValueToken(Tokens[i + 2]);
+						i += 2;
+					}
+
+					TemplateTag.Attributes.SetAttribute(AttribName, Value);
+					i++;
+				}
+
+				if (Tokens[i].Tok == TokenType.BRACKET_OPEN) {
+					i++;
+
+					while (Tokens[i].Tok != TokenType.BRACKET_CLOSE) {
+						if (TryParseTag(ref i, Tokens, Doc, TemplateTag, out FMLTag NewTag))
+							TemplateTag.AddChild(NewTag);
+						else
+							throw new Exception("Invalid token\n" + Tokens[i]);
+					}
+
+					i++;
+					Tag = null;
+					return true;
+				} else if (Tokens[i].Tok == TokenType.SEMICOLON) {
+					i++;
+					Tag = null;
+					return true;
+				}
+			} else if (Tokens[i].Tok == TokenType.IDENTIFIER && Doc.TagSet.IsValid(Tokens[i].Src)) {
 				Tag = new FMLTag(Tokens[i].Src);
 				i++;
 
@@ -330,38 +431,14 @@ namespace FishMarkupLanguage {
 					object Value = true;
 
 					if (Tokens[i + 1].Tok == TokenType.EQUAL) {
-						string ValueSrc = Tokens[i + 2].Src;
+						if (Tokens[i + 2].Tok == TokenType.DOLLAR) {
+							i += 3;
 
-						switch (Tokens[i + 2].Tok) {
-							case TokenType.IDENTIFIER: {
-									if (ValueSrc == "false")
-										Value = false;
-									else if (ValueSrc == "true")
-										Value = true;
-									else
-										throw new NotImplementedException();
-
-									break;
-								}
-
-							case TokenType.NUMBER:
-								Value = float.Parse(ValueSrc, CultureInfo.InvariantCulture);
-								break;
-
-							case TokenType.STRING:
-								// TODO: Make it better
-								Value = ValueSrc.Substring(1, ValueSrc.Length - 2).Replace("\\n", "\n");
-								break;
-
-							case TokenType.DOCUMENT:
-								Value = new FMLHereDoc(ValueSrc);
-								break;
-
-							default:
-								throw new InvalidOperationException();
+							Value = new FMLTemplateValue(Tokens[i].Src);
+						} else {
+							Value = ParseValueToken(Tokens[i + 2]);
+							i += 2;
 						}
-
-						i += 2;
 					}
 
 					Tag.Attributes.SetAttribute(AttribName, Value);
@@ -372,10 +449,10 @@ namespace FishMarkupLanguage {
 					i++;
 
 					while (Tokens[i].Tok != TokenType.BRACKET_CLOSE) {
-						if (TryParseTag(ref i, Tokens, TagSet, out FMLTag NewTag))
+						if (TryParseTag(ref i, Tokens, Doc, RootTemplateTag, out FMLTag NewTag))
 							Tag.AddChild(NewTag);
 						else
-							throw new Exception("Invalid token\n" + Tokens[i]);
+							throw new Exception("Invalid token");
 					}
 
 					i++;
@@ -384,8 +461,35 @@ namespace FishMarkupLanguage {
 					i++;
 					return true;
 				}
+			} else if (Tokens[i].IsValueToken()) {
+				Tag = new FMLValueTag(ParseValueToken(Tokens[i]));
+
+				if (Tokens[i + 1].Tok != TokenType.SEMICOLON)
+					throw new Exception("Expected semicolon");
+
+				i += 2;
+				return true;
+			} else if (Tokens[i].Tok == TokenType.DOLLAR && Tokens[i + 1].Tok == TokenType.IDENTIFIER) {
+				if (RootTemplateTag == null)
+					throw new Exception("Invalid use of $ outside of templates");
+				i++;
+
+				if (Tokens[i].Tok != TokenType.IDENTIFIER)
+					throw new Exception("Expected identifier");
+
+				FMLTemplateValueTag ValTag = new FMLTemplateValueTag(RootTemplateTag);
+				Tag = ValTag;
+				ValTag.TagName = Tokens[i].Src;
+				i++;
+
+				if (Tokens[i].Tok != TokenType.SEMICOLON)
+					throw new Exception("Expected semicolon");
+
+				i++;
+				return true;
 			}
 
+			Tag = null;
 			return false;
 		}
 
@@ -393,7 +497,7 @@ namespace FishMarkupLanguage {
 			Token T = new Token(Tok, TokType, Line, Col);
 
 			if (Tok.Length == 1 && IsSymbol(Tok[0])) {
-				T.Tok = SymbolTypes.Where(TT => TT.Item1 == Tok).FirstOrDefault()?.Item2 ?? TokenType.NONE;
+				T.Tok = SymbolTypes[Tok];
 			} else if (Tok.StartsWith("\"") && Tok.EndsWith("\"")) {
 				T.Tok = TokenType.STRING;
 			} else if (T.Tok == TokenType.NUMBER) {
@@ -419,9 +523,9 @@ namespace FishMarkupLanguage {
 				}
 
 				if (ValidID) {
-					if (Keywords.Contains(Tok))
-						T.Tok = TokenType.IDENTIFIER; // TODO: Keyword token?
-					else
+					if (Keywords.ContainsKey(Tok)) {
+						T.Tok = Keywords[Tok];
+					} else
 						T.Tok = TokenType.IDENTIFIER;
 				}
 			}
@@ -431,64 +535,5 @@ namespace FishMarkupLanguage {
 
 			return T;
 		}
-	}
-
-	struct Token {
-		public string Src;
-		public TokenType Tok;
-		public NumberType NumType;
-
-		public int Line;
-		public int Col;
-
-		public Token(string Src, TokenType Tok, int Line, int Col) {
-			this.Src = Src;
-			this.Tok = Tok;
-			this.Line = Line;
-			this.Col = Col;
-			NumType = NumberType.NONE;
-		}
-
-		public override string ToString() {
-			string TokType = Tok.ToString();
-
-			if (Tok == TokenType.NUMBER) {
-				TokType += string.Format(" {0}", NumType);
-			}
-
-			string TokName = string.Format("{0}:{1}:{2} ", TokType, Line, Col);
-			int TokLen = 24;
-
-			if (TokName.Length < TokLen)
-				TokName += new string(' ', TokLen - TokName.Length);
-
-			return string.Format("{0} {1}", TokName, Src);
-		}
-	}
-
-	enum TokenType {
-		NONE,
-
-		IDENTIFIER,
-		NUMBER,
-		STRING,
-		EQUAL,
-		BRACKET_OPEN,
-		BRACKET_CLOSE,
-		DOCUMENT,
-		SEMICOLON,
-		DOT,
-		DOLLAR,
-		HASH,
-		EOF
-	}
-
-	enum NumberType {
-		NONE,
-		DEC,
-		HEX,
-		OCT,
-		BIN,
-		FLOAT,
 	}
 }
