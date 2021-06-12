@@ -1,4 +1,5 @@
 ﻿using FishMarkupLanguage;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,8 +10,9 @@ using System.Threading.Tasks;
 namespace Test {
 	class Program {
 		static void Main(string[] args) {
-			FML.Parse("test.fml");
+			FMLDocument Doc = FML.Parse("test.fml");
 
+			int A = 300;
 
 			Console.ReadLine();
 		}

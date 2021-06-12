@@ -312,6 +312,12 @@ namespace FishMarkupLanguage {
 			Doc.Tags.AddRange(Tags);
 		}
 
+		public static FMLDocument Parse(string FileName) {
+			FMLDocument Doc = new FMLDocument();
+			Parse(FileName, Doc);
+			return Doc;
+		}
+
 		static bool TryParseTag(ref int i, Token[] Tokens, FMLTagSet TagSet, out FMLTag Tag) {
 			Tag = null;
 
