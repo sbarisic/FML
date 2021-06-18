@@ -1,0 +1,20 @@
+
+items {
+	1;
+	2;
+	3;
+	4;
+	5;
+	6;
+}
+
+items2 {
+	"Test 1";
+	"Test 2";
+}
+
+TestItem {
+	Something {
+		123;
+	}
+}

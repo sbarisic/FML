@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Serialization;
+using System.Reflection;
 
 namespace FishMarkupLanguage {
 
@@ -77,6 +78,48 @@ namespace FishMarkupLanguage {
 			foreach (FMLTag T in Tags) {
 				T.BuildString(0, SB);
 			}
+		}
+
+		public string BuildString() {
+			StringBuilder SB = new StringBuilder();
+			BuildString(SB);
+			return SB.ToString();
+		}
+
+		public T Deserialize<T>() where T : class, new() {
+			T Obj = (T)DeserializeInstance(typeof(T), Tags);
+			return Obj;
+		}
+
+		object DeserializeInstance(Type T, List<FMLTag> TagSet) {
+			object Obj = Activator.CreateInstance(T);
+			FieldInfo[] Fields = Utils.GetFields(T);
+
+			foreach (FMLTag Tg in TagSet) {
+				FieldInfo FI = Fields.Where(F => F.Name == Tg.TagName).FirstOrDefault();
+				object FieldValue = null;
+
+				if (FI.FieldType.IsArray) {
+					Type ElementType = FI.FieldType.GetElementType();
+					Array ElementArray = Array.CreateInstance(ElementType, Tg.Children.Count);
+
+					for (int i = 0; i < Tg.Children.Count; i++) {
+						if (Tg.Children[i] is FMLValueTag ValTag) {
+							ElementArray.SetValue(ValTag.Value, i);
+						} else
+							throw new Exception("Expected value tag");
+					}
+
+					FieldValue = ElementArray;
+				} else if (Utils.TryCreateInstance(FI.FieldType, Tg.Children[0] as FMLValueTag, out FieldValue)) {
+				} else {
+					FieldValue = DeserializeInstance(FI.FieldType, Tg.Children);
+				}
+
+				FI.SetValue(Obj, FieldValue);
+			}
+
+			return Obj;
 		}
 	}
 

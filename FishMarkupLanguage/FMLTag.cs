@@ -192,6 +192,10 @@ namespace FishMarkupLanguage {
 		public override XmlElement ToXmlElement(XmlDocument Doc) {
 			throw new InvalidOperationException();
 		}
+
+		public override string ToString() {
+			return string.Format(ConvertToString(Value) + ";");
+		}
 	}
 
 	public class FMLTemplateValue {
