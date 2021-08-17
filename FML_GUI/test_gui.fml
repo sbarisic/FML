@@ -1,0 +1,9 @@
+
+Window Title = "Main Window", W = 300, H = 300 {
+
+	Button Title = "Test", X = 10, Y = 30, W = 280, H = 50 {
+	}
+
+	Textbox X = 10, Y = 90, W = 280, H = 25 {
+	}
+}
