@@ -29,8 +29,8 @@ namespace FishMarkupLanguage {
 			{"template", TokenType.IDENTIFIER},
 			{"none", TokenType.IDENTIFIER},
 
-			{"true", TokenType.IDENTIFIER},
-			{"false", TokenType.IDENTIFIER}
+			{"true", TokenType.BOOL},
+			{"false", TokenType.BOOL}
 		};
 
 		static bool IsSymbol(char C) {

@@ -6,203 +6,219 @@ using System.Threading.Tasks;
 using System.Xml;
 
 namespace FishMarkupLanguage {
-	public class FMLTag {
-		public string TagName;
-		public FMLAttributes Attributes;
+    public class FMLTag {
+        public string TagName;
+        public FMLAttributes Attributes;
 
-		public FMLTag Parent;
-		public List<FMLTag> Children;
+        public FMLTag Parent;
+        public List<FMLTag> Children;
 
-		public FMLTag() {
-			Attributes = new FMLAttributes();
-			Children = new List<FMLTag>();
-			Parent = null;
-		}
+        public FMLTag() {
+            Attributes = new FMLAttributes();
+            Children = new List<FMLTag>();
+            Parent = null;
+        }
 
-		public FMLTag(string Name) : this() {
-			TagName = Name;
-		}
+        public FMLTag(string Name) : this() {
+            TagName = Name;
+        }
 
-		public virtual void AddChild(FMLTag T) {
-			if (T.Parent != null)
-				T.Parent.RemoveChild(T);
+        public virtual void AddChild(FMLTag T) {
+            if (T.Parent != null)
+                T.Parent.RemoveChild(T);
 
-			T.Parent = this;
-			Children.Add(T);
-		}
+            T.Parent = this;
+            Children.Add(T);
+        }
 
-		public virtual void RemoveChild(FMLTag T) {
-			if (T.Parent == this)
-				T.Parent = null;
+        public virtual void RemoveChild(FMLTag T) {
+            if (T.Parent == this)
+                T.Parent = null;
 
-			if (Children.Contains(T))
-				Children.Remove(T);
-		}
+            if (Children.Contains(T))
+                Children.Remove(T);
+        }
 
-		public virtual void BuildString(int IndentLvl, StringBuilder SB) {
-			if (IndentLvl > 0)
-				SB.Append(new string('\t', IndentLvl));
+        public virtual void BuildString(int IndentLvl, StringBuilder SB) {
+            if (IndentLvl > 0)
+                SB.Append(new string('\t', IndentLvl));
 
-			SB.Append(TagName);
+            SB.Append(TagName);
 
-			foreach (var A in Attributes.ToArray()) {
-				SB.AppendFormat(" {0} = {1}", A.Key, FMLValueTag.ConvertToString(A.Value));
-			}
+            foreach (var A in Attributes.ToArray()) {
+                SB.AppendFormat(" {0} = {1}", A.Key, FMLValueTag.ConvertToString(A.Value));
+            }
 
-			if (Children.Count > 0) {
-				SB.AppendLine(" {");
+            if (Children.Count > 0) {
+                SB.AppendLine(" {");
 
-				foreach (var Child in Children) {
-					Child.BuildString(IndentLvl + 1, SB);
-				}
+                foreach (var Child in Children) {
+                    Child.BuildString(IndentLvl + 1, SB);
+                }
 
-				if (IndentLvl > 0)
-					SB.Append(new string('\t', IndentLvl));
+                if (IndentLvl > 0)
+                    SB.Append(new string('\t', IndentLvl));
 
-				SB.AppendLine("}").ToString();
-			} else
-				SB.AppendLine(";");
-		}
+                SB.AppendLine("}").ToString();
+            } else
+                SB.AppendLine(";");
+        }
 
-		public override string ToString() {
-			string Body = ";";
+        public override string ToString() {
+            string Body = ";";
 
-			if (Children.Count > 0) {
-				Body = string.Format(" {{ {0} }}", string.Join(" ", Children));
-			}
+            if (Children.Count > 0) {
+                Body = string.Format(" {{ {0} }}", string.Join(" ", Children));
+            }
 
-			return string.Format("{0}{1}{2}", TagName, Attributes.Count > 0 ? " " + Attributes.ToString() : "", Body);
-		}
+            return string.Format("{0}{1}{2}", TagName, Attributes.Count > 0 ? " " + Attributes.ToString() : "", Body);
+        }
 
-		public virtual XmlElement ToXmlElement(XmlDocument Doc) {
-			XmlElement Element = Doc.CreateElement(TagName);
+        public virtual XmlElement ToXmlElement(XmlDocument Doc) {
+            XmlElement Element = Doc.CreateElement(TagName);
 
-			foreach (var KV in Attributes.ToArray()) {
-				Element.SetAttribute(KV.Key, KV.Value.ToString());
-			}
+            foreach (var KV in Attributes.ToArray()) {
+                Element.SetAttribute(KV.Key, KV.Value.ToString());
+            }
 
-			foreach (FMLTag C in Children) {
-				if (C is FMLValueTag ValC) {
-					Element.InnerXml += ValC.Value.ToString();
+            foreach (FMLTag C in Children) {
+                if (C is FMLValueTag ValC) {
+                    Element.InnerXml += ValC.Value.ToString();
 
-				} else
-					Element.AppendChild(C.ToXmlElement(Doc));
-			}
+                } else
+                    Element.AppendChild(C.ToXmlElement(Doc));
+            }
 
-			return Element;
-		}
+            return Element;
+        }
 
-		public virtual FMLTag ConstructFromTemplate(FMLTag TemplateInvoke) {
-			FMLTag NewTag = new FMLTag(TagName);
-			KeyValuePair<string, object>[] Attrs = Attributes.ToArray();
+        public virtual FMLTag ConstructFromTemplate(FMLTemplateTag Template, FMLTag TemplateInvoke) {
+            FMLTag NewTag = new FMLTag(TagName);
+            KeyValuePair<string, object>[] Attrs = Attributes.ToArray();
 
-			for (int i = 0; i < Attrs.Length; i++) {
-				object Value = Attrs[i].Value;
+            for (int i = 0; i < Attrs.Length; i++) {
+                object Value = Attrs[i].Value;
 
-				if (Value is FMLTemplateValue TV) {
-					Value = TemplateInvoke.Attributes.GetAttribute(TV.Name);
-				}
+                if (Value is FMLTemplateValue TV) {
+                    Value = TemplateInvoke.Attributes.GetAttribute(TV.Name);
 
-				NewTag.Attributes.SetAttribute(Attrs[i].Key, Value);
-			}
+                    if (Value == null)
+                        Value = Template.Attributes.GetAttribute(TV.Name);
+                }
 
-			for (int i = 0; i < Children.Count; i++)
-				NewTag.AddChild(Children[i].ConstructFromTemplate(TemplateInvoke));
+                NewTag.Attributes.SetAttribute(Attrs[i].Key, Value);
+            }
 
-			return NewTag;
-		}
-	}
+            for (int i = 0; i < Children.Count; i++)
+                NewTag.AddChild(Children[i].ConstructFromTemplate(Template, TemplateInvoke));
 
-	public class FMLTemplateTag : FMLTag {
-		public string TemplateName;
+            return NewTag;
+        }
+    }
 
-		public FMLTemplateTag() : base() {
-		}
+    public class FMLTemplateTag : FMLTag {
+        public string TemplateName;
 
-		public override XmlElement ToXmlElement(XmlDocument Doc) {
-			return null;
-		}
+        public FMLTemplateTag() : base() {
+        }
 
-		public FMLTag[] ConstructTags(FMLTag TemplateInvoke) {
-			List<FMLTag> NewTags = new List<FMLTag>();
+        public override XmlElement ToXmlElement(XmlDocument Doc) {
+            return null;
+        }
 
-			for (int i = 0; i < Children.Count; i++)
-				NewTags.Add(Children[i].ConstructFromTemplate(TemplateInvoke));
+        public FMLTag[] ConstructTags(FMLTag TemplateInvoke) {
+            List<FMLTag> NewTags = new List<FMLTag>();
 
-			return NewTags.ToArray();
-		}
-	}
+            for (int i = 0; i < Children.Count; i++) {
+                /*FMLAttributes ChildAttrs = Children[i].Attributes;
 
-	public class FMLTemplateValueTag : FMLTag {
-		public FMLTemplateTag Template;
+                foreach (var KV in Attributes.ToArray()) {
+                    if (ChildAttrs.GetAttribute(KV.Key) is FMLTemplateValue) {
+                        ChildAttrs.SetAttribute(KV.Key, KV.Value);
+                    }
+                }*/
 
-		public FMLTemplateValueTag(FMLTemplateTag RootTemplate) : base() {
-			Template = RootTemplate;
-		}
+                NewTags.Add(Children[i].ConstructFromTemplate(this, TemplateInvoke));
+            }
 
-		public override FMLTag ConstructFromTemplate(FMLTag TemplateInvoke) {
-			object Val = TemplateInvoke.Attributes.GetAttribute(TagName);
-			return new FMLValueTag(Val);
-		}
+            return NewTags.ToArray();
+        }
+    }
 
-		public override string ToString() {
-			return "$" + base.ToString();
-		}
+    public class FMLTemplateValueTag : FMLTag {
+        public FMLTemplateTag Template;
 
-		public override XmlElement ToXmlElement(XmlDocument Doc) {
-			throw new InvalidOperationException();
-		}
-	}
+        public FMLTemplateValueTag(FMLTemplateTag RootTemplate) : base() {
+            Template = RootTemplate;
+        }
 
-	public class FMLValueTag : FMLTag {
-		public object Value;
+        public override FMLTag ConstructFromTemplate(FMLTemplateTag Template, FMLTag TemplateInvoke) {
+            object Val = TemplateInvoke.Attributes.GetAttribute(TagName);
 
-		public FMLValueTag(object Value) : base() {
-			this.Value = Value;
-		}
+            if (Val == null)
+                Val = Template.Attributes.GetAttribute(TagName);
 
-		public static string ConvertToString(object Value) {
-			if (Value == null)
-				return "none";
-			else if (Value is string Str)
-				return string.Format("\"{0}\"", Str.Replace("\"", "\\\""));
-			else if (Value is int I)
-				return I.ToString();
-			else if (Value is float F)
-				return F.ToString() + "f";
-			else if (Value is FMLTemplateValue TV) {
-				return "$" + TV.Name;
-			} else if (Value is FMLHereDoc HD) {
-				return HD.ToHereDocString();
-			} else
-				throw new Exception("Cannot convert value to string");
-		}
+            return new FMLValueTag(Val);
+        }
 
-		public override void BuildString(int IndentLvl, StringBuilder SB) {
-			if (IndentLvl > 0)
-				SB.Append(new string('\t', IndentLvl));
+        public override string ToString() {
+            return "$" + base.ToString();
+        }
 
-			SB.AppendLine(ConvertToString(Value) + ";");
-		}
+        public override XmlElement ToXmlElement(XmlDocument Doc) {
+            throw new InvalidOperationException();
+        }
+    }
 
-		public override FMLTag ConstructFromTemplate(FMLTag TemplateInvoke) {
-			return new FMLValueTag(Value);
-		}
+    public class FMLValueTag : FMLTag {
+        public object Value;
 
-		public override XmlElement ToXmlElement(XmlDocument Doc) {
-			throw new InvalidOperationException();
-		}
+        public FMLValueTag(object Value) : base() {
+            this.Value = Value;
+        }
 
-		public override string ToString() {
-			return string.Format(ConvertToString(Value) + ";");
-		}
-	}
+        public static string ConvertToString(object Value) {
+            if (Value == null)
+                return "none";
+            else if (Value is string Str)
+                return string.Format("\"{0}\"", Str.Replace("\"", "\\\""));
+            else if (Value is int I)
+                return I.ToString();
+            else if (Value is float F)
+                return F.ToString() + "f";
+            else if (Value is FMLTemplateValue TV) {
+                return "$" + TV.Name;
+            } else if (Value is FMLHereDoc HD) {
+                return HD.ToHereDocString();
+            } else
+                throw new Exception("Cannot convert value to string");
+        }
 
-	public class FMLTemplateValue {
-		public string Name;
+        public override void BuildString(int IndentLvl, StringBuilder SB) {
+            if (IndentLvl > 0)
+                SB.Append(new string('\t', IndentLvl));
 
-		public FMLTemplateValue(string Name) {
-			this.Name = Name;
-		}
-	}
+            SB.AppendLine(ConvertToString(Value) + ";");
+        }
+
+        public override FMLTag ConstructFromTemplate(FMLTemplateTag Template, FMLTag TemplateInvoke) {
+            return new FMLValueTag(Value);
+        }
+
+        public override XmlElement ToXmlElement(XmlDocument Doc) {
+            throw new InvalidOperationException();
+        }
+
+        public override string ToString() {
+            return string.Format(ConvertToString(Value) + ";");
+        }
+    }
+
+    public class FMLTemplateValue {
+        public string Name;
+
+        public FMLTemplateValue(string Name) {
+            this.Name = Name;
+        }
+    }
 }
