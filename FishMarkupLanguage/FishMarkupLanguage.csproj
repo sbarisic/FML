@@ -44,6 +44,7 @@
   <ItemGroup>
     <Compile Include="ArgumentParser.cs" />
     <Compile Include="ReflectionUtils.cs" />
+    <Compile Include="Scripting.cs" />
     <Compile Include="Token.cs" />
     <Compile Include="FML.cs" />
     <Compile Include="FMLAttributes.cs" />
@@ -51,6 +52,11 @@
     <Compile Include="FMLTagSet.cs" />
     <Compile Include="FMLTag.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting">
+      <Version>4.0.1</Version>
+    </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
