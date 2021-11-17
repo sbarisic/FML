@@ -12,17 +12,24 @@ using Microsoft.CodeAnalysis.Scripting;
 namespace FishMarkupLanguage {
 	public class Scripting {
 		Script<object> FMLScript;
+		ScriptState<object> State;
 
 		public void Compile(string SrcCode, Type GlobalsType) {
 			FMLScript = CSharpScript.Create<object>(SrcCode, ScriptOptions.Default, GlobalsType);
 		}
 
-		public object Run(object Globals) {
-			ScriptState<object> State = FMLScript.RunAsync(Globals).Result;
+		public void Run(object Globals) {
+			State = FMLScript.RunAsync(Globals).Result;
 
 			if (State.Exception != null)
 				throw State.Exception;
+		}
 
+		public T GetReturnValue<T>() {
+			return (T)State.ReturnValue;
+		}
+
+		public object GetReturnValue() {
 			return State.ReturnValue;
 		}
 	}
