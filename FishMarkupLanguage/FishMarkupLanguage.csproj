@@ -44,7 +44,6 @@
   <ItemGroup>
     <Compile Include="ArgumentParser.cs" />
     <Compile Include="ReflectionUtils.cs" />
-    <Compile Include="Scripting.cs" />
     <Compile Include="Token.cs" />
     <Compile Include="FML.cs" />
     <Compile Include="FMLAttributes.cs" />
